@@ -1,0 +1,198 @@
+1. Query protocols for case 1
+text
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix owl: <http://www.w3.org/2002/07/owl#> 
+prefix snomed: <http://wasp.cs.vu.nl/sct/sct#>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> 
+prefix kycept: <http://wasp.cs.vu.nl/kycept/>
+prefix kytrela: <http://wasp.cs.vu.nl/kytrela/>
+   
+select distinct  ?text  ?termLabel1  ?termLabel2  ?Relation  ?Text2  ?Entity1 
+                    ?Entity2  ?manualLabel  ?BioKyBERTLabel
+   
+where {
+   {?PMID         kycept:hasAnnotation    ?Annotation .
+   ?Annotation    kycept:hasText          ?Text .
+   ?Annotation    kycept:hasTerm          ?Term1 .
+   ?Term1         kycept:hasLabel         ?TermLabel1 .
+   ?Term1         kycept:hasSenses        ?Senses1 .
+   ?Senses1       kycept:SenseURL         ?URL .
+   ?URL           snomed:hasEnglishLabel   ?URLLabel .
+   ?URL           rdfs:subClassOf          <http://www.ihtsdo.org/SCT_707616007> .}  # Kynurenine concept
+   filter exists
+   {?Annotation   kycept:hasTerm          ?Term2 .
+   ?Term2         kycept:hasLabel         ?TermLabel2 .
+   ?Term2         kycept:hasSenses        ?Senses2 .
+   ?Senses2       kycept:SenseURL         <http://www.ihtsdo.org/SCT_373464007> .}  # Neurotransmitter concept
+   union
+   {?Relation     kytrela:hasText          ?Text2 ;
+                  kytrela:hasEntity1       ?Entity1 ;
+                  kytrela:hasEntity2       ?Entity2 ;
+                  kytrela:manualLabel      ?manualLabel ;
+                  kytrela:BioKyBERTLabel  ?BioKyBERTLabel .}  # Changed from BioKetBERT to BioKyBERT
+    }
+
+2. Query protocols for case 2
+text
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix owl: <http://www.w3.org/2002/07/owl#> 
+prefix snomed: <http://wasp.cs.vu.nl/sct/sct#>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+prefix db: <http://www.drugbank.ca/>
+prefix dcterms: <http://purl.org/dc/terms/>
+prefix wp: <http://vocabularies.wikipathways.org/wp#>
+prefix kegg: <https://www.kegg.jp/dbget-bin/www_bget?> 
+
+select distinct ?Action  ?TargetName  ?GeneName  ?PeptideID  ?PMID
+                   ?PathwayName  ?PathwayTitle  ?PathwayLink  ?Relation  ?R-Type
+                   ?E1Name  ?E1Type  ?E1Definition  ?E2Name  ?E2Type  ?E2Definition
+where {
+   # Kynurenine pathway metabolites and enzymes from KEGG
+   {?Pathway        kegg:pathwayName            ?PathwayName ;
+                    kegg:pathwayTitle           ?PathwayTitle ;
+                    kegg:pathwayLink            ?PathwayLink ;
+                    kegg:Entry                  ?Entry ;
+                    kegg:Relation               ?Relation.
+   ?Relation        kegg:hasEntry1              ?Entry1 ;
+                    kegg:hasEntry2              ?Entry2 ;
+                    kegg:hasRelationSubtype     ?R-Type .
+   ?Entry           kegg:entryID                ?Entry1 ;
+                    kegg:entryName              ?E1Name ;
+                    kegg:entryType              ?E1Type ;
+                    kegg:entryLink              ?E1Link .
+   ?E1Link          kegg:hasDefinition          ?E1Definition .
+   ?Entry           kegg:entryID                ?Entry2 ;
+                    kegg:entryName              ?E2Name ;
+                    kegg:entryType              ?E2Type ;
+                    kegg:entryLink              ?E2Link .
+   ?E2Link          kegg:hasDefinition          ?E2Definition .
+   filter regex     (?PathwayTitle,'kynurenine|tryptophan','i')}
+   
+   union
+   
+   # WikiPathways for neurotransmitter and kynurenine pathways
+   {?geneProduct    a                           wp:GeneProduct . 
+   ?geneProduct     rdfs:label                  ?label .
+   ?geneProduct     dcterms:isPartOf            ?pathway .
+   ?pathway         rdf:type                    ?type .
+   ?pathway         wp:source                   ?source .
+   ?source          rdfs:label                  ?sourceLabel.
+   ?pathway         wp:target                   ?target .
+   ?target          rdfs:label                  ?targetLabel .
+   ?pathway         dcterms:isPartOf            ?partpath .
+   ?partpath        dc:title                    ?title .
+   ?partpath        dc:identifier               ?identifier .
+   ?partpath        wp:organismName             'Homo sapiens' .
+   filter regex     (?title, 'kynurenine|neurotransmitter|glutamate|dopamine|serotonin', 'i')}
+}
+
+33. Query protocols for case 3
+text
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix owl: <http://www.w3.org/2002/07/owl#> 
+prefix snomed: <http://wasp.cs.vu.nl/sct/sct#>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> 
+prefix kyfact: <http://wasp.cs.vu.nl/kyfact/>
+
+select distinct  ?Type  ?Entry1  ?E1Link  ?Entry2  ?E2Link  ?Item1  ?I1Link
+                    ?Item2  ?I2Link
+    
+where {
+   {?Relation      kyfact:RelationType        ?Type ;
+                   kyfact:hasEntry1           ?Entry1 ;
+                   kyfact:hasEntry2           ?Entry2 ;
+   ?Entry1         kyfact:hasName             ?E1Name ;
+                   owl:sameAs                  ?E1Link .
+   ?Entry2         kyfact:hasName             ?E2Name ;
+                   owl:sameAs                  ?E2Link .}
+   union
+   {?Relation      kyfact:RelationType        ?Type ;
+                   kyfact:hasEntry1           ?Entry1 ;
+                   kyfact:hasEntry2           ?Entry2 ;
+   ?Entry1         kyfact:hasName             ?E1Name ;
+                   owl:sameAs                  ?E1Link .
+   ?Item2          rdfs:subClassOf             ?Entry2 ;
+                   kyfact:hasName             ?I2Name ;
+                   owl:sameAs                  ?I2Link .}
+   union
+   {?Relation      kyfact:RelationType        ?Type ;
+                   kyfact:hasEntry1           ?Entry1 ;
+                   kyfact:hasEntry2           ?Entry2 .
+   ?Item1          rdfs:subClassOf             ?Entry1 ;
+                   kyfact:hasName             ?I1Name ;
+                   owl:sameAs                  ?I1Link .
+   ?Entry2         kyfact:hasName             ?E2Name ;
+                   owl:sameAs                  ?E2Link .}
+   union
+   {?Relation      kyfact:RelationType        ?Type ;
+                   kyfact:hasEntry1           ?Entry1 ;
+                   kyfact:hasEntry2           ?Entry2 .
+   ?Item1          rdfs:subClassOf             ?Entry1 ;
+                   kyfact:hasName             ?I1Name ;
+                   owl:sameAs                  ?I1Link .
+   ?Item2          rdfs:subClassOf             ?Entry2 ;
+                   kyfact:hasName             ?I2Name ;
+                   owl:sameAs                  ?I2Link .}
+}
+
+4. Query protocols for case 4
+text
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix owl: <http://www.w3.org/2002/07/owl#> 
+prefix snomed: <http://wasp.cs.vu.nl/sct/sct#>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> 
+prefix mikg: <http://wasp.cs.vu.nl/mikg/>
+prefix kypath: <http://wasp.cs.vu.nl/kypath/>
+prefix ppconcept: <http://wasp.cs.vu.nl/ppconcept#>
+prefix ppstatement: <http://wasp.cs.vu.nl/ppstatement#>   
+   
+select distinct  ?Statement  ?pmid  ?doi  ?Neurotransmitter  ?Microbiota 
+                    ?probiotics  ?composition  ?text  ?URLLabel
+   
+where {
+   # From MiKG: Relationships between kynurenine, neurotransmitters, and inflammatory molecules
+   {?statement    mikg:hasNeurotransmitter   ?Neurotransmitter ;
+                  mikg:hasGutMicrobiota      ?Microbiota ;
+                  mikg:hasModulation         ?Modulation ;
+                  mikg:hasReference          ?Reference .
+   ?Reference     mikg:hasPMID               ?pmid ;
+                  mikg:hasDOI                ?doi .
+   # Filter for kynurenine-related statements
+   filter exists {?statement mikg:hasCompound ?compound .
+                  filter regex(str(?compound), 'kynurenine|KYN|KYNA|QUIN', 'i')}}
+   
+   union
+   
+   # From PPKG: Probiotics and their effects on BDNF (relevant to neuroprotection)
+   {?Statement    ppstatement:hasEffectOn    ?Effect ;
+                  ppstatement:hasProbiotics  ?Probiotics ;
+                  ppstatement:hasReference   ?Reference .
+   ?Reference     ppstatement:hasPMID        ?pmid .
+   filter regex   (?effect,'bdnf|brain-derived neurotrophic factor','i')}
+   
+   union
+   
+   # From PPKG: Probiotic mixtures and their composition affecting BDNF
+   {?Statement    ppstatement:hasEffectOn    ?Effect ;
+                  ppstatement:hasProbiotics  ?Probiotics ;
+                  ppstatement:hasReference   ?Reference ;
+   ?Reference     ppstatement:hasPMID        ?pmid .
+   ?Probiotics    a                          owl:Class ;
+                  owl:intersectionOf         ?Mixture .
+   ?Mixture       rdf:rest*/rdf:first        ?Composition .
+   filter regex   (?effect,'bdnf|brain-derived neurotrophic factor','i')}
+   
+   union
+   
+   # From annotations: Text mentioning BDNF and inflammatory molecules
+   {?pmid         ppconcept:hasAnnotations   ?Annotations .
+   ?Annotations   ppconcept:hasText          ?Text .
+   ?Annotations   ppconcept:hasAnnotation    ?Annotation .
+   ?Annotation    ppconcept:hasTerm          ?Term .
+   ?Term          ppconcept:hasSenses        ?Senses .
+   ?Senses        ppconcept:hasSense         ?Sense .
+   ?Sense         ppconcept:SenseURL         ?URL .
+   ?URL           rdfs:subClassOf            <http://www.ihtsdo.org/SCT_264395009> .  # Inflammatory process
+   ?URL           snomed:hasEnglishLabel     ?URLLabel .
+   filter regex   (?Text,'bdnf|brain-derived neurotrophic factor','i')}
+}
